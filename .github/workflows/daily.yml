@@ -1,10 +1,9 @@
-name: Daily Bestseller Collection 
+name: Daily Bestseller Collection
 
 on:
   schedule:
-    # 매일 한국시간 오전 9시 (UTC 00:00)
     - cron: '0 0 * * *'
-  workflow_dispatch:  # 수동 실행 버튼
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -35,7 +34,7 @@ jobs:
         working-directory: scripts
         run: python build_dashboard.py
 
-     - name: Commit data & dashboard
+      - name: Commit data & dashboard
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -47,6 +46,11 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
 
   deploy:
     needs: collect
