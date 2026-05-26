@@ -1,4 +1,4 @@
-name: Daily Bestseller Collection
+name: Daily Bestseller Collection 
 
 on:
   schedule:
