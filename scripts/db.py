@@ -1,11 +1,4 @@
-"""
-SQLite 초기화 및 공통 DB 유틸리티.
-
-스키마 설계 원칙:
-- 한 행 = (수집일자, 서점, 순위)의 유일한 조합
-- 책의 정체성은 (제목 + 저자)로 식별 — 서점마다 ISBN을 노출하지 않는 경우가 있어
-  완전 표준화는 어려움. 따라서 분석 시에는 normalize_title()로 정규화한 키 사용.
-"""
+"""SQLite 초기화 및 공통 DB 유틸리티."""
 
 import sqlite3
 from pathlib import Path
@@ -21,50 +14,53 @@ def get_conn():
 
 
 def init_db():
-    """테이블이 없으면 생성."""
     conn = get_conn()
     cur = conn.cursor()
     cur.execute("""
     CREATE TABLE IF NOT EXISTS bestsellers (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        collected_at TEXT NOT NULL,           -- YYYY-MM-DD (KST)
-        store       TEXT NOT NULL,            -- kyobo / yes24 / aladin
-        rank        INTEGER NOT NULL,
-        title       TEXT NOT NULL,
-        author      TEXT,
-        publisher   TEXT,
-        price       INTEGER,
-        pub_date    TEXT,                     -- 출간일 (원본 문자열)
-        url         TEXT,
-        title_key   TEXT NOT NULL,            -- 정규화 키 (조인용)
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        collected_at TEXT NOT NULL,
+        store        TEXT NOT NULL,
+        rank         INTEGER NOT NULL,
+        title        TEXT NOT NULL,
+        author       TEXT,
+        publisher    TEXT,
+        price        INTEGER,
+        pub_date     TEXT,
+        url          TEXT,
+        cover_url    TEXT,
+        title_key    TEXT NOT NULL,
         UNIQUE(collected_at, store, rank)
     )
     """)
     cur.execute("CREATE INDEX IF NOT EXISTS idx_title_key ON bestsellers(title_key)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_collected_at ON bestsellers(collected_at)")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_store_date ON bestsellers(store, collected_at)")
+    # 기존 DB에 cover_url 컬럼이 없으면 추가 (마이그레이션)
+    cols = [r[1] for r in cur.execute("PRAGMA table_info(bestsellers)").fetchall()]
+    if "cover_url" not in cols:
+        cur.execute("ALTER TABLE bestsellers ADD COLUMN cover_url TEXT")
     conn.commit()
     conn.close()
 
 
-def normalize_title(title: str) -> str:
-    """
-    제목 정규화 — 서점 간 같은 책을 매칭하기 위함.
-    공백·괄호 안 부가설명·특수문자를 제거하고 소문자화.
-    """
+def normalize_title(title):
     if not title:
         return ""
     import re
     t = title.lower()
-    # 괄호와 그 안의 내용 제거 (예: "소년이 온다 (양장본)")
-    t = re.sub(r"[\(\[\{].*?[\)\]\}]", "", t)
-    # 특수문자/공백 제거
+    # 괄호(여러 종류)와 그 안의 내용 제거
+    t = re.sub(r"[\(\[\{（［].*?[\)\]\}）］]", "", t)
+    # 특전판류: 앞 수식어(트리플/더블/한정 등)와 함께 제거 (괄호 없는 버전 대응)
+    t = re.sub(r"(트리플|더블|싱글|한정|특별|기념|개정|증보|합본|세트|박스|양장|특전)?\s*특전판", "", t)
+    # 기타 판형/세트 표기 제거
+    t = re.sub(r"(양장본|반양장|개정판|개정증보판|특별판|한정판|합본판|박스세트|세트)", "", t)
+    # 공백/특수문자 제거
     t = re.sub(r"[^\w가-힣]", "", t)
     return t.strip()
 
 
-def insert_books(books: list[dict]):
-    """수집한 책 리스트를 DB에 삽입. 중복(같은 날짜·서점·순위)은 무시."""
+def insert_books(books):
     if not books:
         return 0
     conn = get_conn()
@@ -74,12 +70,12 @@ def insert_books(books: list[dict]):
         try:
             cur.execute("""
                 INSERT OR IGNORE INTO bestsellers
-                (collected_at, store, rank, title, author, publisher, price, pub_date, url, title_key)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (collected_at, store, rank, title, author, publisher, price, pub_date, url, cover_url, title_key)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 b["collected_at"], b["store"], b["rank"],
                 b["title"], b.get("author"), b.get("publisher"),
-                b.get("price"), b.get("pub_date"), b.get("url"),
+                b.get("price"), b.get("pub_date"), b.get("url"), b.get("cover_url"),
                 normalize_title(b["title"]),
             ))
             if cur.rowcount > 0:

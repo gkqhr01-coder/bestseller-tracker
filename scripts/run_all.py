@@ -1,31 +1,35 @@
 """
-메인 실행 진입점.
-3사 크롤러를 순차 실행해 SQLite에 적재한다.
-GitHub Actions에서 이 파일을 실행한다.
+메인 실행 진입점 (예스24 + 알라딘).
+맥에서 매일 실행되어 SQLite에 적재한다.
+
+교보문고는 JS 렌더링 방식이라 현재 제외.
+나중에 scraper_kyobo.py(Selenium 버전)를 추가하면
+아래 STORES 리스트에 한 줄만 더하면 됩니다.
 """
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from db import init_db, insert_books
-from scraper_kyobo import fetch_top100 as fetch_kyobo
 from scraper_yes24 import fetch_top100 as fetch_yes24
 from scraper_aladin import fetch_top100 as fetch_aladin
+from scraper_kyobo import fetch_top100 as fetch_kyobo
+
+STORES = [
+    ("예스24", fetch_yes24),
+    ("알라딘", fetch_aladin),
+    ("교보문고", fetch_kyobo),
+]
 
 
 def run():
-    today = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S KST")
-    print(f"=== Bestseller collection started: {today} ===\n")
+    now = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d %H:%M:%S KST")
+    print(f"=== Bestseller collection started: {now} ===\n")
 
     init_db()
-
     total_inserted = 0
 
-    for name, fetcher in [
-        ("교보문고", fetch_kyobo),
-        ("예스24", fetch_yes24),
-        ("알라딘", fetch_aladin),
-    ]:
+    for name, fetcher in STORES:
         print(f"\n▶ {name} 수집 중...")
         try:
             books = fetcher()

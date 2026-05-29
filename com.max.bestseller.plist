@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 이 자동작업의 고유 이름 -->
+    <key>Label</key>
+    <string>com.max.bestseller</string>
+
+    <!-- 실행할 명령: run.sh -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__RUN_SH_PATH__</string>
+    </array>
+
+    <!-- 매일 오전 9시에 실행 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 맥이 꺼져있어서 9시를 놓쳤으면, 켜진 직후 실행 -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- 실행 로그 (문제 생기면 여기 확인) -->
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/bestseller.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/bestseller_error.log</string>
+</dict>
+</plist>
